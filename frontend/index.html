@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloud Resource Management Simulator</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Local lightweight chart library (no CDN dependency) -->
+  <script src="minichart.js"></script>
+</head>
+<body>
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">⚡ CloudSim</div>
+      <span class="subtitle">Resource Management Simulator</span>
+    </div>
+    <div class="header-center">
+      <div class="algo-selector">
+        <label>Scheduler:</label>
+        <select id="algorithmSelect">
+          <option value="greedy">Greedy (Least Loaded)</option>
+          <option value="knapsack">0-1 Knapsack</option>
+          <option value="fcfs">FCFS</option>
+          <option value="priority">Priority + Preemption</option>
+          <option value="roundrobin">Round Robin</option>
+        </select>
+        <button id="setAlgoBtn" class="btn btn-primary">Apply</button>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-indicator">
+        <span class="pulse"></span> LIVE
+      </div>
+      <div id="lastUpdated" class="last-updated">--</div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+  <main class="main">
+
+    <!-- ── Top Stats Bar ── -->
+    <section class="stats-bar">
+      <div class="stat-card" id="stat-servers">
+        <div class="stat-value" id="statServerCount">0</div>
+        <div class="stat-label">Active Servers</div>
+      </div>
+      <div class="stat-card" id="stat-tasks">
+        <div class="stat-value" id="statActiveTasks">0</div>
+        <div class="stat-label">Running Tasks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statQueueDepth">0</div>
+        <div class="stat-label">Queue Depth</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statAvgCpu">0%</div>
+        <div class="stat-label">Avg CPU</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statAvgMem">0%</div>
+        <div class="stat-label">Avg Memory</div>
+      </div>
+      <div class="stat-card warning">
+        <div class="stat-value" id="statSlaViolations">0</div>
+        <div class="stat-label">SLA Violations</div>
+      </div>
+      <div class="stat-card success">
+        <div class="stat-value" id="statCompleted">0</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statContextSwitches">0</div>
+        <div class="stat-label">Context Switches</div>
+      </div>
+    </section>
+
+    <!-- ── Content Grid ── -->
+    <div class="content-grid">
+
+      <!-- ── LEFT COLUMN ── -->
+      <div class="col-left">
+
+        <!-- Server Cluster Cards -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>🖥️ Server Cluster</h2>
+            <div class="panel-actions">
+              <button id="addServerBtn" class="btn btn-success btn-sm">+ Add Server</button>
+            </div>
+          </div>
+          <div id="serverGrid" class="server-grid">
+            <div class="loading-msg">Loading servers...</div>
+          </div>
+        </div>
+
+        <!-- CPU Utilization Chart -->
+        <div class="panel">
+          <div class="panel-header"><h2>📈 CPU Utilization (Real-time)</h2></div>
+          <div class="chart-container">
+            <canvas id="cpuChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Memory Utilization Chart -->
+        <div class="panel">
+          <div class="panel-header"><h2>💾 Memory Utilization (Real-time)</h2></div>
+          <div class="chart-container">
+            <canvas id="memChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Algorithm Comparison Chart -->
+        <div class="panel">
+          <div class="panel-header"><h2>🔬 Algorithm Comparison</h2></div>
+          <div class="chart-container" style="height:220px">
+            <canvas id="algoChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── RIGHT COLUMN ── -->
+      <div class="col-right">
+
+        <!-- Submit Task Form -->
+        <div class="panel">
+          <div class="panel-header"><h2>📤 Submit Task</h2></div>
+          <form id="taskForm" class="task-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>CPU (%)</label>
+                <input type="number" id="fCpu" value="20" min="1" max="100" required />
+              </div>
+              <div class="form-group">
+                <label>Memory (MB)</label>
+                <input type="number" id="fMemory" value="512" min="1" max="65536" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Exec Time (s)</label>
+                <input type="number" id="fExecTime" value="10" min="1" max="3600" required />
+              </div>
+              <div class="form-group">
+                <label>Priority (1-10)</label>
+                <input type="number" id="fPriority" value="5" min="1" max="10" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>User ID</label>
+                <input type="text" id="fUserId" value="user1" />
+              </div>
+              <div class="form-group">
+                <label>Deadline (opt.)</label>
+                <input type="datetime-local" id="fDeadline" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Submit Task</button>
+              <button type="button" id="submitBatchBtn" class="btn btn-secondary">Submit 5-Task Batch</button>
+              <button type="button" id="randomTaskBtn" class="btn btn-ghost">🎲 Random</button>
+            </div>
+          </form>
+          <div id="taskFeedback" class="feedback-msg"></div>
+        </div>
+
+        <!-- Task Queue -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>📋 Task Queue</h2>
+            <span id="queueBadge" class="badge">0</span>
+          </div>
+          <div id="taskQueue" class="task-list">
+            <div class="empty-msg">Queue is empty</div>
+          </div>
+        </div>
+
+        <!-- Active Tasks -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>⚙️ Active Tasks</h2>
+            <span id="activeBadge" class="badge">0</span>
+          </div>
+          <div id="activeTasks" class="task-list">
+            <div class="empty-msg">No active tasks</div>
+          </div>
+        </div>
+
+        <!-- Scheduler Decision Log -->
+        <div class="panel">
+          <div class="panel-header">
+            <h2>📝 Scheduler Decisions</h2>
+            <button id="clearDecisionsBtn" class="btn btn-ghost btn-sm">Clear</button>
+          </div>
+          <div id="decisionLog" class="decision-log">
+            <div class="empty-msg">No decisions yet</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
