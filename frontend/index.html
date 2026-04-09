@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloud Resource Management Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Chart.js (local) -->
+  <script src="vendor/chart.umd.min.js"></script>
+  <!-- Socket.IO client (local) -->
+  <script src="vendor/socket.io.min.js"></script>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">☁ CloudSim</div>
+      <span class="subtitle">Resource Management Simulator</span>
+    </div>
+    <div class="header-right">
+      <span class="badge" id="conn-badge">● Connecting…</span>
+      <button class="btn btn-demo" id="demo-btn">⚡ Generate Demo Load</button>
+    </div>
+  </header>
+
+  <!-- System Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">CPU Usage</div>
+      <div class="stat-value" id="stat-cpu">0%</div>
+      <div class="stat-bar"><div class="stat-fill cpu-fill" id="bar-cpu"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Memory Usage</div>
+      <div class="stat-value" id="stat-mem">0%</div>
+      <div class="stat-bar"><div class="stat-fill mem-fill" id="bar-mem"></div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Processes</div>
+      <div class="stat-value" id="stat-procs">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Queue Size</div>
+      <div class="stat-value" id="stat-queue">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Tasks</div>
+      <div class="stat-value" id="stat-total">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">SLA Met</div>
+      <div class="stat-value green" id="stat-sla">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">SLA Missed</div>
+      <div class="stat-value red" id="stat-sla-miss">0</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <main class="main-grid">
+
+    <!-- Left column: Task Form + Decision Log -->
+    <section class="panel" id="panel-left">
+      <h2 class="panel-title">📋 Submit Task</h2>
+      <form id="task-form">
+        <div class="form-row">
+          <label>Task Name</label>
+          <input type="text" id="f-name" value="my-task" required />
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>CPU Required (cores)</label>
+            <input type="number" id="f-cpu" value="1" min="0.1" max="16" step="0.1" />
+          </div>
+          <div>
+            <label>Memory (MB)</label>
+            <input type="number" id="f-mem" value="512" min="64" max="32768" step="64" />
+          </div>
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>Exec Time (sec)</label>
+            <input type="number" id="f-exec" value="5" min="1" max="60" />
+          </div>
+          <div>
+            <label>Priority (1–10)</label>
+            <input type="number" id="f-priority" value="5" min="1" max="10" />
+          </div>
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>Deadline (sec from now)</label>
+            <input type="number" id="f-deadline" value="30" min="5" max="300" />
+          </div>
+          <div>
+            <label>SLA Threshold (sec)</label>
+            <input type="number" id="f-sla" value="10" min="1" max="120" />
+          </div>
+        </div>
+        <div class="form-row two-col">
+          <div>
+            <label>User ID</label>
+            <input type="text" id="f-user" value="user-1" />
+          </div>
+          <div>
+            <label>Tenant ID</label>
+            <input type="text" id="f-tenant" value="tenant-1" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Scheduling Algorithm</label>
+          <select id="f-algo">
+            <option value="greedy">Greedy (Least Loaded)</option>
+            <option value="knapsack">0-1 Knapsack</option>
+            <option value="fcfs">FCFS</option>
+            <option value="priority">Priority Scheduling</option>
+            <option value="round_robin">Round Robin</option>
+            <option value="lru">LRU Cache Eviction</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">🚀 Submit Task</button>
+          <button type="button" class="btn btn-secondary" id="batch-btn">📦 Batch (5x)</button>
+        </div>
+      </form>
+
+      <!-- Decision Log -->
+      <div class="decision-log">
+        <h3>📜 Decision Log</h3>
+        <div id="log-entries"></div>
+      </div>
+    </section>
+
+    <!-- Center column: Servers + Charts -->
+    <section class="panel panel-center">
+      <h2 class="panel-title">🖥 Server Cluster</h2>
+      <div id="servers-grid" class="servers-grid"></div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>CPU Load per Server</h3>
+          <canvas id="chart-cpu"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Memory Load per Server</h3>
+          <canvas id="chart-mem"></canvas>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>Task Status Distribution</h3>
+          <canvas id="chart-status"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Algorithm Usage</h3>
+          <canvas id="chart-algo"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right column: Task Table + Memory -->
+    <section class="panel" id="panel-right">
+      <h2 class="panel-title">📊 Task Registry</h2>
+      <div class="filter-bar">
+        <select id="filter-status">
+          <option value="">All Status</option>
+          <option value="NEW">NEW</option>
+          <option value="READY">READY</option>
+          <option value="RUNNING">RUNNING</option>
+          <option value="WAITING">WAITING</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="TERMINATED">TERMINATED</option>
+          <option value="FAILED">FAILED</option>
+        </select>
+        <select id="filter-algo">
+          <option value="">All Algorithms</option>
+          <option value="Greedy (Least Loaded)">Greedy</option>
+          <option value="0-1 Knapsack">Knapsack</option>
+          <option value="FCFS">FCFS</option>
+          <option value="Priority Scheduling">Priority</option>
+          <option value="Round Robin">Round Robin</option>
+          <option value="LRU Cache Eviction">LRU</option>
+        </select>
+      </div>
+      <div class="task-table-wrap">
+        <table class="task-table" id="task-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Name</th><th>Priority</th><th>Status</th>
+              <th>Algorithm</th><th>Server</th><th>Progress</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="task-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Memory Panel -->
+      <div class="memory-panel">
+        <h3>🧠 Memory Blocks (LRU)</h3>
+        <div class="mem-stats" id="mem-stats"></div>
+        <button class="btn btn-warning" id="evict-btn">⬇ Evict LRU Block</button>
+        <div id="mem-blocks" class="mem-blocks"></div>
+      </div>
+
+      <!-- Algorithm Comparison -->
+      <div class="algo-compare">
+        <h3>🔬 Algorithm Comparison</h3>
+        <button class="btn btn-secondary" id="compare-btn">Run Benchmark</button>
+        <div id="compare-results"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
