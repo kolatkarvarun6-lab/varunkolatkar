@@ -49,6 +49,11 @@ def health():
     return jsonify({"status": "ok"})
 
 
+def _safe_msg(e: Exception) -> str:
+    """Return only the exception message string, never a traceback."""
+    return e.args[0] if e.args else "An error occurred"
+
+
 @app.route("/api/tasks", methods=["POST"])
 def create_task():
     data = request.get_json(force=True) or {}
@@ -56,7 +61,7 @@ def create_task():
         task = service.create_task(data)
         return jsonify(task.to_dict()), 201
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/tasks", methods=["GET"])
@@ -72,7 +77,7 @@ def get_task(task_id):
         task = service.get_task(task_id)
         return jsonify(task.to_dict())
     except KeyError as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": _safe_msg(e)}), 404
 
 
 @app.route("/api/tasks/<task_id>", methods=["PUT"])
@@ -82,9 +87,9 @@ def update_task(task_id):
         task = service.update_task(task_id, data)
         return jsonify(task.to_dict())
     except KeyError as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": _safe_msg(e)}), 404
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/tasks/<task_id>", methods=["DELETE"])
@@ -93,9 +98,9 @@ def cancel_task(task_id):
         task = service.cancel_task(task_id)
         return jsonify(task.to_dict())
     except KeyError as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": _safe_msg(e)}), 404
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/servers", methods=["POST"])
@@ -105,7 +110,7 @@ def create_server():
         server = service.create_server(data)
         return jsonify(server.to_dict()), 201
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/servers", methods=["GET"])
@@ -121,7 +126,7 @@ def get_server(server_id):
         server = service.get_server(server_id)
         return jsonify(server.to_dict())
     except KeyError as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": _safe_msg(e)}), 404
 
 
 @app.route("/api/servers/<server_id>", methods=["PUT"])
@@ -131,9 +136,9 @@ def update_server(server_id):
         server = service.update_server(server_id, data)
         return jsonify(server.to_dict())
     except KeyError as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": _safe_msg(e)}), 404
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/servers/<server_id>", methods=["DELETE"])
@@ -142,9 +147,9 @@ def remove_server(server_id):
         server = service.remove_server(server_id)
         return jsonify(server.to_dict())
     except KeyError as e:
-        return jsonify({"error": str(e)}), 404
+        return jsonify({"error": _safe_msg(e)}), 404
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/schedule", methods=["POST"])
@@ -155,7 +160,7 @@ def schedule():
         result = service.run_scheduler(algorithm=algorithm)
         return jsonify(result)
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": _safe_msg(e)}), 400
 
 
 @app.route("/api/stats", methods=["GET"])
@@ -164,4 +169,4 @@ def stats():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)
