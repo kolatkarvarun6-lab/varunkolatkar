@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloud Resource Manager</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon">☁</span>
+        <span class="brand-text">CloudRM</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-item active" data-section="dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </a>
+        <a href="#tasks" class="nav-item" data-section="tasks">
+          <span class="nav-icon">📋</span> Tasks
+        </a>
+        <a href="#servers" class="nav-item" data-section="servers">
+          <span class="nav-icon">🖥</span> Servers
+        </a>
+        <a href="#scheduler" class="nav-item" data-section="scheduler">
+          <span class="nav-icon">⚙</span> Scheduler
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="autoRefreshStatus" class="refresh-badge">● Auto-refresh ON</span>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <!-- Dashboard -->
+      <section id="dashboard" class="section active">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <button class="btn btn-secondary" onclick="refreshAll()">↺ Refresh</button>
+        </div>
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-value" id="statTotalTasks">–</div>
+          </div>
+          <div class="stat-card accent-blue">
+            <div class="stat-label">Running</div>
+            <div class="stat-value" id="statRunning">–</div>
+          </div>
+          <div class="stat-card accent-green">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value" id="statCompleted">–</div>
+          </div>
+          <div class="stat-card accent-orange">
+            <div class="stat-label">Servers</div>
+            <div class="stat-value" id="statServers">–</div>
+          </div>
+          <div class="stat-card accent-purple">
+            <div class="stat-label">CPU Utilization</div>
+            <div class="stat-value" id="statCpuUtil">–</div>
+          </div>
+          <div class="stat-card accent-red">
+            <div class="stat-label">SLA At Risk</div>
+            <div class="stat-value" id="statSlaRisk">–</div>
+          </div>
+        </div>
+
+        <div class="row-two-col">
+          <div class="card">
+            <div class="card-header">Recent Tasks</div>
+            <div class="card-body" id="recentTasksList">Loading…</div>
+          </div>
+          <div class="card">
+            <div class="card-header">Server Health</div>
+            <div class="card-body" id="serverHealthList">Loading…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tasks -->
+      <section id="tasks" class="section">
+        <div class="page-header">
+          <h1>Tasks</h1>
+          <button class="btn btn-primary" onclick="showModal('addTaskModal')">+ Add Task</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span>All Tasks</span>
+            <select id="taskStatusFilter" onchange="loadTasks()" class="filter-select">
+              <option value="">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="RUNNING">Running</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="FAILED">Failed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+          <div class="card-body">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Priority</th>
+                  <th>CPU</th>
+                  <th>Memory</th>
+                  <th>Status</th>
+                  <th>Urgency</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody">
+                <tr><td colspan="7" class="empty-row">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Servers -->
+      <section id="servers" class="section">
+        <div class="page-header">
+          <h1>Servers</h1>
+          <button class="btn btn-primary" onclick="showModal('addServerModal')">+ Add Server</button>
+        </div>
+        <div id="serversGrid" class="servers-grid">Loading…</div>
+      </section>
+
+      <!-- Scheduler -->
+      <section id="scheduler" class="section">
+        <div class="page-header">
+          <h1>Scheduler</h1>
+        </div>
+        <div class="row-two-col">
+          <div class="card">
+            <div class="card-header">Run Scheduler</div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>Algorithm</label>
+                <select id="schedAlgorithm" class="form-control">
+                  <option value="greedy">Greedy (Least Loaded)</option>
+                  <option value="fcfs">FCFS (First Come First Served)</option>
+                  <option value="priority">Priority (with Preemption)</option>
+                  <option value="round_robin">Round Robin</option>
+                </select>
+              </div>
+              <div class="algo-description" id="algoDesc">
+                Picks the server with the most available resources (CPU + Memory weighted sum).
+              </div>
+              <button class="btn btn-primary btn-block" onclick="runScheduler()">▶ Run Scheduler</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">Last Scheduler Result</div>
+            <div class="card-body" id="schedulerResult">
+              <p class="text-muted">No scheduler run yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add Task Modal -->
+  <div id="addTaskModal" class="modal-overlay" onclick="closeModalOnOverlay(event, 'addTaskModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add New Task</h2>
+        <button class="modal-close" onclick="hideModal('addTaskModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="taskName" class="form-control" placeholder="Task name" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="taskDesc" class="form-control" placeholder="Optional description" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>CPU Required (cores) *</label>
+            <input type="number" id="taskCpu" class="form-control" placeholder="e.g. 2" min="0.1" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label>Memory Required (GB) *</label>
+            <input type="number" id="taskMem" class="form-control" placeholder="e.g. 4" min="0.1" step="0.1" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Priority (1–10) *</label>
+            <input type="number" id="taskPriority" class="form-control" placeholder="5" min="1" max="10" />
+          </div>
+          <div class="form-group">
+            <label>Deadline (optional)</label>
+            <input type="datetime-local" id="taskDeadline" class="form-control" />
+          </div>
+        </div>
+        <div id="taskFormError" class="form-error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideModal('addTaskModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="createTask()">Create Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Server Modal -->
+  <div id="addServerModal" class="modal-overlay" onclick="closeModalOnOverlay(event, 'addServerModal')">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add New Server</h2>
+        <button class="modal-close" onclick="hideModal('addServerModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" id="serverName" class="form-control" placeholder="e.g. node-04" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Total CPU (cores) *</label>
+            <input type="number" id="serverCpu" class="form-control" placeholder="e.g. 16" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Total Memory (GB) *</label>
+            <input type="number" id="serverMem" class="form-control" placeholder="e.g. 64" min="1" />
+          </div>
+        </div>
+        <div id="serverFormError" class="form-error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="hideModal('addServerModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="createServer()">Create Server</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
